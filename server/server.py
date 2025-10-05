@@ -159,6 +159,20 @@ async def handle_reader(reader, writer):
                     f"[GRUPO TRANSPORTE] Mensagem recebida de {frm} para o grupo {group_id}"
                 )
 
+                # distribuir a mensagem para todos os outros membros do grupo
+                for member in group["members"]:
+                    if member != frm:
+                        BLOBS.setdefault(member, []).append(
+                            {
+                                "from": frm,
+                                "blob": blob,
+                                "group_id": group_id,
+                                "type": "group",
+                            }
+                        )
+                # enviar confirmação de que a mensagem foi armazenada para o grupo
+                await send_ok(writer, {"message": "stored for group"})
+
             elif mtype == "fetch_blobs":
                 cid = msg.get("client_id")
                 if not cid:

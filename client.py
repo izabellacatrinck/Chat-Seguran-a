@@ -154,14 +154,28 @@ async def interactive(server_host, server_port, cacert, client_id):
                 print("Erro:", e)
 
         elif cmd == "criar" and parts[1].lower() == "grupo":
-            group_id = parts[2]
-            members = parts[4:] + [client_id]  # Adiciona o criador à lista
+            # para lidar com múltiplos membros
+            try:
+                full_command_parts = line.strip().split()
+                group_id = full_command_parts[2]
+                com_index = full_command_parts.index("com")
+                members = full_command_parts[com_index + 1:]
 
-            # 1. Gerar chave simétrica para o grupo
+                if not members:
+                    print("Erro: Você precisa especificar pelo menos um membro para o grupo.")
+                    continue
+
+                members.append(client_id)
+
+            except (ValueError, IndexError):
+                print("Formato de comando inválido. Use: criar grupo <nome> com <membro1> <membro2>...")
+                continue
+
+            # gerar chave simétrica para o grupo
             group_key = os.urandom(SecretBox.KEY_SIZE)
             groups[group_id] = {"key": group_key, "history": []}
 
-            # 2. Informar o servidor sobre o novo grupo
+            # informar o servidor sobre o novo grupo
             await client.send_recv(
                 {
                     "type": "create_group",
@@ -171,13 +185,13 @@ async def interactive(server_host, server_port, cacert, client_id):
                 }
             )
 
-            # 3. Distribuir a chave para cada membro
+            # distribuir a chave para cada membro
             print(f"[GRUPO] Distribuindo chave para o grupo '{group_id}'...")
             for member in members:
                 if member == client_id:
                     continue
 
-                # Pegar chave pública do membro
+                # pegar chave pública do membro
                 resp = await client.send_recv({"type": "get_key", "client_id": member})
                 if resp.get("status") != "ok":
                     print(f"  - Erro ao obter chave de {member}: {resp.get('reason')}")
@@ -186,10 +200,10 @@ async def interactive(server_host, server_port, cacert, client_id):
                 peer_pub = PublicKey(ub64(resp["pubkey"]))
                 box = Box(priv, peer_pub)
 
-                # Cifrar a chave do grupo para este membro
+                # cifrar a chave do grupo para este membro
                 key_blob = box.encrypt(group_key)
 
-                # Envelopar e enviar
+                # envelopar e enviar
                 envelope = {
                     "type": "group_key_distribution",
                     "group_id": group_id,
