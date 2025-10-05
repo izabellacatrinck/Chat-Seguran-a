@@ -1,14 +1,10 @@
-# Chat-Seguran-a
-Chat seguro para a matéria de Segurança da Informação
+# Chat Seguro
 
+Chat seguro para a matéria de Segurança da Informação;
 Inicialmente assegurando o pilar de Confidencialidade, por meio dos algoritmos de cifragem: Salsa20 e ECDH;
 
 # MANUAL DE EXECUÇÃO
 
-Para subir o servidor: python server.py
-
-Para subir clientes, em outro terminal rode: python client.py
-
-Para cliente recuperar sua chave pública: !chave
-
-Para cliente encerrar conexão: !sair
+Gerar certificados: python server/generate_cert.py
+Para subir o servidor: python server/server.py cert.pem key.pem
+Para subir clientes: python client.py --id user --server localhost:4433 --cacert cert.pem
