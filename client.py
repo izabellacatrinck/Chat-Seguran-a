@@ -107,7 +107,6 @@ async def interactive(server_host, server_port, cacert, client_id):
                 continue
             peer = peer_choice
 
-            # pegar chave pública do peer
             resp = await client.send_recv({"type":"get_key","client_id":peer})
             if resp.get("status")!="ok":
                 print("Não foi possível obter chave do peer:", resp)
@@ -186,16 +185,20 @@ async def interactive(server_host, server_port, cacert, client_id):
                 continue  
 
         elif cmd=="iniciar":
-            if len(parts)<3 or parts[1].lower()!="chat":
+            if not line.lower().startswith("iniciar chat com "):
                 print("Uso: Iniciar chat com <cliente>")
                 continue
-            peer = parts[2].strip().strip('"')
-            if peer==client_id:
+            peer = line[17:].strip().strip('"') 
+            if not peer:
+                print("Nome do cliente não informado.")
+                continue
+            if peer == client_id:
                 print("Não é possível iniciar chat consigo mesmo.")
                 continue
             if peer not in conversations:
                 conversations[peer] = []
             print(f"Conversa com {peer} criada. Use 'Conversas' para entrar nela.")
+
 
         elif cmd=="sair":
             print("Encerrando cliente...")
