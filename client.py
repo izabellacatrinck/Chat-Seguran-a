@@ -43,8 +43,8 @@ async def interactive(server_host, server_port, cacert, client_id):
         return
     print(f"[+] Chave pública publicada para {client_id}")
 
-    conversations = {}  # peer_id -> [ (timestamp, sender, mensagem) ]
-    new_msgs = {}       # peer_id -> int (novas mensagens)
+    conversations = {}  
+    new_msgs = {}     
 
     async def ainput(prompt=""):
         return await asyncio.to_thread(input, prompt)
@@ -107,7 +107,6 @@ async def interactive(server_host, server_port, cacert, client_id):
                 continue
             peer = peer_choice
 
-            # pegar chave pública do peer
             resp = await client.send_recv({"type":"get_key","client_id":peer})
             if resp.get("status")!="ok":
                 print("Não foi possível obter chave do peer:", resp)
@@ -137,12 +136,14 @@ async def interactive(server_host, server_port, cacert, client_id):
 
             new_msgs[peer]=0
 
-            # loop de chat com refresh
+            stop_event = asyncio.Event()  
+
             async def chat_loop():
                 while True:
                     text = await ainput("")
-                    if text.strip()=="/quit":
+                    if text.strip() == "/quit":
                         print(f"Saindo da conversa com {peer}.\n")
+                        stop_event.set()  # sinaliza refresh para parar
                         return "quit"
                     ts = time.strftime("%H:%M:%S")
                     cipher = box.encrypt(text.encode())
@@ -154,12 +155,12 @@ async def interactive(server_host, server_port, cacert, client_id):
 
             async def refresh_loop():
                 last_len = len(conversations[peer])
-                while True:
+                while not stop_event.is_set():  # para quando stop_event for setado
                     await asyncio.sleep(1)
                     history = conversations[peer]
                     for idx in range(last_len, len(history)):
                         entry = history[idx]
-                        if entry[0]=="received":
+                        if entry[0] == "received":
                             m = entry[1]
                             env = json.loads(base64.b64decode(m["blob"]).decode())
                             cipher = ub64(env["blob"])
@@ -173,29 +174,31 @@ async def interactive(server_host, server_port, cacert, client_id):
                                 print(f"[{ts}] {m['from']}: <erro ao decifrar>")
                     last_len = len(history)
 
-            # ✅ Corrigido: gather com return_exceptions e cancelamento do refresh
             chat_task = asyncio.create_task(chat_loop())
             refresh_task = asyncio.create_task(refresh_loop())
 
             result = await asyncio.gather(chat_task, refresh_task, return_exceptions=True)
             refresh_task.cancel()
 
-            # volta ao menu se chat_loop retornou "quit"
             if any(r == "quit" for r in result if isinstance(r,str)):
                 show_menu()
-                continue  # volta para loop principal
+                continue  
 
         elif cmd=="iniciar":
-            if len(parts)<3 or parts[1].lower()!="chat":
+            if not line.lower().startswith("iniciar chat com "):
                 print("Uso: Iniciar chat com <cliente>")
                 continue
-            peer = parts[2].strip().strip('"')
-            if peer==client_id:
+            peer = line[17:].strip().strip('"') 
+            if not peer:
+                print("Nome do cliente não informado.")
+                continue
+            if peer == client_id:
                 print("Não é possível iniciar chat consigo mesmo.")
                 continue
             if peer not in conversations:
                 conversations[peer] = []
             print(f"Conversa com {peer} criada. Use 'Conversas' para entrar nela.")
+
 
         elif cmd=="sair":
             print("Encerrando cliente...")
