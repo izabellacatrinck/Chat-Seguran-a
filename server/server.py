@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import asyncio
 import builtins
 import contextlib
@@ -14,7 +13,6 @@ ACTIVE_CLIENTS = {}  # client_id -> {reader, writer}
 GROUPS = {}  # group_id -> { "members": [client_id], "admin": client_id }
 
 
-# --- Inicialização do JSON ---
 def init_pubkeys():
     global PUBLIC_KEYS
     if PUBKEYS_FILE.exists():
@@ -31,7 +29,7 @@ def init_pubkeys():
         print("✅ Arquivo pubkeys.json criado vazio.")
 
 
-# --- Atualiza JSON ao receber nova chave ---
+# atualiza o json ao receber nova chave
 def store_pubkey(client_id, pubkey_b64):
     global PUBLIC_KEYS
     PUBLIC_KEYS[client_id] = pubkey_b64
@@ -39,8 +37,7 @@ def store_pubkey(client_id, pubkey_b64):
         json.dump(PUBLIC_KEYS, f, indent=2)
     print(f"[+] Nova chave pública recebida de {client_id}: {pubkey_b64}")
 
-
-# --- Funções auxiliares ---
+# funcoes auxiliares
 async def send_ok(writer, payload):
     obj = {"status": "ok", **payload}
     writer.write((json.dumps(obj) + "\n").encode())
@@ -53,7 +50,6 @@ async def send_error(writer, reason):
     await writer.drain()
 
 
-# --- Handler de conexões ---
 async def handle_reader(reader, writer):
     addr = writer.get_extra_info("peername")
     client_id = None
@@ -206,7 +202,6 @@ async def handle_reader(reader, writer):
             await writer.wait_closed()
 
 
-# --- Main ---
 async def main(certfile, keyfile, host="0.0.0.0", port=4433):
     sslctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     sslctx.load_cert_chain(certfile, keyfile)

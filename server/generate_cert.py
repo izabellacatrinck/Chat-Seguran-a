@@ -1,22 +1,21 @@
-import ssl
-import tempfile
 import pathlib
 from datetime import datetime, timedelta
-from cryptography import x509
-from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
 
-# === Gerar chave privada RSA ===
-key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-key_bytes = key.private_bytes(
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
+
+# gera chave privada RSA
+key: rsa.RSAPrivateKey = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+key_bytes: bytes = key.private_bytes(
     encoding=serialization.Encoding.PEM,
     format=serialization.PrivateFormat.TraditionalOpenSSL,
     encryption_algorithm=serialization.NoEncryption(),
 )
 pathlib.Path("key.pem").write_bytes(key_bytes)
 
-# === Criar certificado autoassinado ===
+# cria certificado autoassinado
 subject = issuer = x509.Name([
     x509.NameAttribute(NameOID.COUNTRY_NAME, "BR"),
     x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Amazonas"),
