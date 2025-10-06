@@ -53,6 +53,8 @@ class SendDMIn(BaseModel):
 
 
 class MessageOut(BaseModel):
+    id: Optional[int] = None
+    ts: Optional[float] = None
     from_: str = Field(alias="from")
     blob: str
     meta: Dict[str, Any] = {}

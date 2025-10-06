@@ -17,7 +17,6 @@ health_router = APIRouter(tags=["health"])
 async def health():
     return {"status": "ok"}
 
-
 # ---------- Keys ----------
 keys_router = APIRouter(prefix="/keys", tags=["keys"])
 
@@ -33,14 +32,12 @@ async def get_key(client_id: str):
         raise HTTPException(404, "chave não encontrada")
     return KeyOut(client_id=client_id, pubkey=pk)
 
-
 # ---------- Clients ----------
 clients_router = APIRouter(prefix="/clients", tags=["clients"])
 
 @clients_router.get("", response_model=ClientsOut)
 async def list_clients(exclude: str | None = Query(default=None)):
     return ClientsOut(clients=storage.list_clients(exclude))
-
 
 # ---------- Messages (DM) ----------
 messages_router = APIRouter(prefix="/messages", tags=["messages"])
@@ -52,11 +49,24 @@ async def send_dm(body: SendDMIn):
     return {"status": "ok"}
 
 @messages_router.get("", response_model=MessagesOut)
-async def fetch_blobs(client_id: str = Query(...)):
-    items = storage.fetch_blobs(client_id)
+async def fetch_blobs(
+        client_id: str = Query(...),
+        mode: str = Query("pending", pattern="^(pending|history)$"),
+        peek: bool = Query(False),
+        since_id: int | None = Query(default=None, ge=0),
+        limit: int = Query(100, ge=1, le=1000),
+):
+    """
+    mode=pending  -> retorna pendências (peek controla se consome ou não)
+    mode=history  -> retorna histórico (ignora peek), suporta since_id/limit
+    """
+    if mode == "pending":
+        items = storage.fetch_blobs(client_id, peek=peek)
+    else:  # history
+        items = storage.get_history(client_id, since_id=since_id, limit=limit)
+
     out = [MessageOut.model_validate({"from": m.get("from"), **m}) for m in items]
     return MessagesOut(messages=out)
-
 
 # ---------- Groups ----------
 groups_router = APIRouter(prefix="/groups", tags=["groups"])
